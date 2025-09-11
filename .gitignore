@@ -35,7 +35,8 @@ venv.bak/
 *.swp
 *.swo
 
-# Output files
+# Output files (exclude specific directories but allow docs/)
 output/
 *.md
 !README.md
+!docs/**/*.md
