@@ -64,13 +64,10 @@
 15. [Inter-Agent Communication](#inter-agent-communication-pattern-overview)
 
 ### Optimization and Advanced Topics
-16. [Dynamic Model Switching](#practical-applications-use-cases-15)
-17. [Advanced Reasoning](#practical-applications-use-cases-16)
-18. [Performance Optimization](#practical-applications-use-cases-17)
-19. [Agent Testing and Evaluation](#practical-applications-use-cases-18)
-20. [Security and Privacy](#practical-applications-use-cases-19)
-21. [Deployment and Monitoring](#practical-applications-use-cases-20)
-22. [Case Studies](#practical-applications-use-cases-21)
+16. [Beyond Dynamic Model Switching](#beyond-dynamic-model-switching-a-spectrum-of-agent-resource-optimizations)
+17. [Reasoning Techniques](#reasoning-techniques)  
+18. [Advanced Reasoning and Thought Processes](#reasoning-and-thought-process-techniques)
+19. [Case Studies](#case-study-the-self-improving-coding-agent-sica)
 
 ### Appendices
 - [Additional Resources](#additional-resources)
