@@ -37,45 +37,44 @@
 ## Table of Contents
 
 ### Front Matter
-- [Dedication](#dedication)
-- [Acknowledgments](#acknowledgments)
 - [Foreword](#foreword)
-- [A Thought Leader's Perspective](#a-thought-leaders-perspective)
-- [Introduction](#introduction)
-- [What Makes an AI System an "Agent"?](#what-makes-an-ai-system-an-agent)
+- [Preface](#preface)
+- [What are Agentic Systems?](#what-are-agentic-systems)
+- [Why Patterns Matter in Agent Development](#why-patterns-matter-in-agent-development)
+- [Overview of the Book and How to Use It](#overview-of-the-book-and-how-to-use-it)
+- [Introduction to the Frameworks Used](#introduction-to-the-frameworks-used)
 
-### Part One: Core Patterns (103 pages)
-1. [Chapter 1: Prompt Chaining](#chapter-1-prompt-chaining) (12 pages)
-2. [Chapter 2: Routing](#chapter-2-routing) (13 pages)
-3. [Chapter 3: Parallelization](#chapter-3-parallelization) (15 pages)
-4. [Chapter 4: Reflection](#chapter-4-reflection) (13 pages)
-5. [Chapter 5: Tool Use](#chapter-5-tool-use) (20 pages)
-6. [Chapter 6: Planning](#chapter-6-planning) (13 pages)
-7. [Chapter 7: Multi-Agent](#chapter-7-multi-agent) (17 pages)
+### Core Design Patterns
+1. [Prompt Chaining Pattern](#prompt-chaining-pattern-overview)
+2. [Routing Pattern](#routing-pattern-overview)
+3. [Parallelization Pattern](#parallelization-pattern-overview)
+4. [Reflection Pattern](#reflection-pattern-overview)
+5. [Tool Use Pattern](#tool-use-pattern-overview)
+6. [Planning Pattern](#planning-pattern-overview)
+7. [Multi-Agent Collaboration Pattern](#multi-agent-collaboration-pattern-overview)
 
-### Part Two: Advanced Implementation (61 pages)
-8. [Chapter 8: Orchestration](#chapter-8-orchestration) (15 pages)
-9. [Chapter 9: Memory](#chapter-9-memory) (15 pages)
-10. [Chapter 10: Advanced Techniques](#chapter-10-advanced-techniques) (31 pages)
+### Advanced Patterns
+8. [Memory Pattern](#the-big-picture)
+9. [Orchestration Pattern](#the-big-picture-1)
+10. [MCP Pattern](#mcp-pattern-overview)
+11. [Goal Setting and Monitoring](#goal-setting-and-monitoring-pattern-overview)
+12. [Exception Handling and Recovery](#exception-handling-and-recovery-pattern-overview)
+13. [Human-in-the-Loop](#human-in-the-loop-pattern-overview)
+14. [Knowledge Retrieval (RAG)](#knowledge-retrieval-rag-pattern-overview)
+15. [Inter-Agent Communication](#inter-agent-communication-pattern-overview)
 
-### Part Three: Evaluation and Deployment (34 pages)
-11. [Chapter 11: Evaluation Framework](#chapter-11-evaluation-framework) (17 pages)
-12. [Chapter 12: Deployment and Monitoring](#chapter-12-deployment-and-monitoring) (17 pages)
+### Optimization and Advanced Topics
+16. [Dynamic Model Switching](#practical-applications-use-cases-15)
+17. [Advanced Reasoning](#practical-applications-use-cases-16)
+18. [Performance Optimization](#practical-applications-use-cases-17)
+19. [Agent Testing and Evaluation](#practical-applications-use-cases-18)
+20. [Security and Privacy](#practical-applications-use-cases-19)
+21. [Deployment and Monitoring](#practical-applications-use-cases-20)
+22. [Case Studies](#practical-applications-use-cases-21)
 
-### Part Four: Case Studies and Advanced Applications (114 pages)
-13. [Chapter 13: Enterprise Applications](#chapter-13-enterprise-applications) (38 pages)
-14. [Chapter 14: Research and Development](#chapter-14-research-and-development) (38 pages)
-15. [Chapter 15: Future Directions](#chapter-15-future-directions) (38 pages)
-
-### Part Five: Practical Implementation (74 pages)
-16. [Chapter 16: Building Your First Agent](#chapter-16-building-your-first-agent) (25 pages)
-17. [Chapter 17: Scaling Considerations](#chapter-17-scaling-considerations) (24 pages)
-18. [Chapter 18: Best Practices](#chapter-18-best-practices) (25 pages)
-
-### Appendices (15 pages)
-- [Appendix A: Code Examples](#appendix-a-code-examples)
-- [Appendix B: Resources](#appendix-b-resources)
-- [Appendix C: Glossary](#appendix-c-glossary)
+### Appendices
+- [Additional Resources](#additional-resources)
+- [Future Directions](#future-directions)
 
 ---
 
