@@ -202,8 +202,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--payload", help="JSON payload describing the build request")
     parser.add_argument("--timeout", type=float, default=30.0, help="HTTP timeout for build API calls")
     parser.add_argument("--poll-interval", type=float, default=10.0, help="Polling frequency for build status")
-    parser.add_argument("--preview-url", action="append", help="Preview label and URL (format: Label=https://...)" )
-    parser.add_argument("--quick-link", action="append", help="Additional quick link (format: Label=https://...)" )
+    parser.add_argument(
+        "--preview-url",
+        action="append",
+        help="Preview label and URL (format: Label=https://... )",
+    )
+    parser.add_argument(
+        "--quick-link",
+        action="append",
+        help="Additional quick link (format: Label=https://... )",
+    )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
