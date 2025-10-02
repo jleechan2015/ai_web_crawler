@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "github-actions-deploy"
+version = "0.1.0"
+description = "Async build orchestration helpers for GitHub Actions deploy previews in VPC-SC environments"
+readme = "docs/ci-preview.md"
+authors = [
+  { name = "AI Web Crawler Team" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = [
+  "requests>=2.31.0"
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Build Tools",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12"
+]
+keywords = ["github", "actions", "deploy", "preview", "vpc"]
+
+[project.urls]
+Homepage = "https://github.com/jleechanorg/ai_web_crawler"
+Source = "https://github.com/jleechanorg/ai_web_crawler"
+Issues = "https://github.com/jleechanorg/ai_web_crawler/issues"
+
+[tool.setuptools]
+packages = ["github_actions_deploy"]
+
+[tool.setuptools.package-data]
+github_actions_deploy = ["py.typed"]
