@@ -5,9 +5,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from dataclasses import replace
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from .async_build import AsyncBuildClient, AsyncBuildError, BuildInfo, BuildStatus
+
+class ConfigurationError(RuntimeError):
+    """Raised when CLI configuration is invalid."""
+
+from .async_build import AsyncBuildClient, AsyncBuildError, BuildStatus
 from .github import upsert_pull_request_comment
 from .pr_comments import COMMENT_MARKER, IndicatorState, ProgressIndicator, render_progress_comment
 
@@ -48,13 +53,22 @@ def _indicator_from_build(status: BuildStatus, *, preview_urls: Sequence[Tuple[s
     elif status in {BuildStatus.FAILED, BuildStatus.CANCELLED}:
         preview_state = IndicatorState.FAILED
 
-    preview_description = "" if preview_urls else "Provisioning preview service"
+    if preview_urls:
+        preview_url = preview_urls[0][1]
+        extra_links = [f"[{label}]({url})" for label, url in preview_urls[1:]]
+        preview_description: Optional[str] = None
+        if extra_links:
+            preview_description = "Additional previews:<br />" + "<br />".join(extra_links)
+    else:
+        preview_url = None
+        preview_description = "Provisioning preview service"
+
     indicators.append(
         ProgressIndicator(
             name="Preview service",
             state=preview_state,
-            url=preview_urls[0][1] if preview_urls else None,
-            description=preview_description or None,
+            url=preview_url,
+            description=preview_description,
         )
     )
 
@@ -73,7 +87,19 @@ def _write_outputs(outputs: Dict[str, str]) -> None:
 def _load_payload(payload: Optional[str]) -> Dict[str, object]:
     if not payload:
         return {}
-    return json.loads(payload)
+    try:
+        return json.loads(payload)
+    except json.JSONDecodeError as error:
+        raise ConfigurationError(f"Invalid JSON payload: {error}") from error
+
+
+def _resolve_base_url(provided: Optional[str]) -> str:
+    candidate = (provided or os.environ.get("ASYNC_BUILD_BASE_URL") or "").strip()
+    if not candidate:
+        raise ConfigurationError(
+            "Async build base URL is required. Provide --base-url or set the ASYNC_BUILD_BASE_URL secret."
+        )
+    return candidate
 
 
 def _upsert_comment(
@@ -93,8 +119,10 @@ def _upsert_comment(
 
 
 def cmd_start(args: argparse.Namespace) -> int:
+    base_url = _resolve_base_url(args.base_url)
+
     client = AsyncBuildClient(
-        args.base_url,
+        base_url,
         token=args.build_token,
         timeout=args.timeout,
         poll_interval=args.poll_interval,
@@ -125,14 +153,19 @@ def cmd_start(args: argparse.Namespace) -> int:
         "comment_id": str(comment_id),
         "build_status": build.status.value,
     }
+    if preview_links:
+        outputs["preview_url"] = preview_links[0][1]
+        outputs["preview_urls"] = json.dumps(preview_links)
     _write_outputs(outputs)
 
     return 0
 
 
 def cmd_poll(args: argparse.Namespace) -> int:
+    base_url = _resolve_base_url(args.base_url)
+
     client = AsyncBuildClient(
-        args.base_url,
+        base_url,
         token=args.build_token,
         timeout=args.timeout,
         poll_interval=args.poll_interval,
@@ -148,19 +181,13 @@ def cmd_poll(args: argparse.Namespace) -> int:
             poll_interval=args.poll_interval,
         )
         status = build.status
-    except AsyncBuildError as error:
+    except AsyncBuildError:
         # Fetch final status to display detailed error message.
         build = client.get_build(args.build_id)
         status = build.status
         if status not in {BuildStatus.SUCCEEDED, BuildStatus.FAILED, BuildStatus.CANCELLED}:
             status = BuildStatus.FAILED
-        build = BuildInfo(
-            build_id=build.build_id,
-            status=status,
-            detail_url=build.detail_url,
-            logs_url=build.logs_url,
-            metadata=build.metadata,
-        )
+        build = replace(build, status=status)
         result_code = 1
     else:
         result_code = 0 if status == BuildStatus.SUCCEEDED else 1
@@ -186,6 +213,7 @@ def cmd_poll(args: argparse.Namespace) -> int:
     }
     if preview_links:
         outputs["preview_url"] = preview_links[0][1]
+        outputs["preview_urls"] = json.dumps(preview_links)
     _write_outputs(outputs)
 
     return result_code
@@ -197,7 +225,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo", required=True, help="GitHub repository in owner/name format")
     parser.add_argument("--pr-number", type=int, required=True, help="Pull request number")
     parser.add_argument("--github-token", required=True, help="Token with permission to manage PR comments")
-    parser.add_argument("--base-url", required=True, help="Base URL of the async build service")
+    parser.add_argument("--base-url", help="Base URL of the async build service")
     parser.add_argument("--build-token", help="Bearer token for the build service")
     parser.add_argument("--payload", help="JSON payload describing the build request")
     parser.add_argument("--timeout", type=float, default=30.0, help="HTTP timeout for build API calls")
@@ -234,7 +262,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except ConfigurationError as error:
+        parser.error(str(error))
+        return 2  # pragma: no cover
 
 
 if __name__ == "__main__":  # pragma: no cover

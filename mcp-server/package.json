@@ -9,7 +9,8 @@
   },
   "files": [
     "src",
-    "scripts"
+    "scripts",
+    "python"
   ],
   "scripts": {
     "start": "node ./src/index.js",

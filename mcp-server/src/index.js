@@ -6,6 +6,7 @@ import {
   startFastMcpHttpProxy
 } from '@ai-universe/mcp-server-utils';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -13,8 +14,14 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const projectRoot = resolve(__dirname, '..', '..');
-const crawlerScript = join(projectRoot, 'crawler.py');
+const packageRoot = resolve(__dirname, '..');
+const pythonAssetsDir = join(packageRoot, 'python');
+const repositoryRoot = resolve(packageRoot, '..');
+const bundledCrawlerScript = join(pythonAssetsDir, 'crawler.py');
+const fallbackCrawlerScript = join(repositoryRoot, 'crawler.py');
+const hasBundledCrawler = existsSync(bundledCrawlerScript);
+const crawlerScript = hasBundledCrawler ? bundledCrawlerScript : fallbackCrawlerScript;
+const crawlerWorkingDirectory = hasBundledCrawler ? pythonAssetsDir : repositoryRoot;
 
 const DEFAULT_MAX_DEPTH = 1;
 const DEFAULT_DELAY = 1;
@@ -41,7 +48,7 @@ async function runCrawler({ url, maxDepth = DEFAULT_MAX_DEPTH, delay = DEFAULT_D
   try {
     await new Promise((resolvePromise, rejectPromise) => {
       const child = spawn(pythonBin, args, {
-        cwd: projectRoot,
+        cwd: crawlerWorkingDirectory,
         stdio: ['ignore', 'pipe', 'pipe']
       });
 
@@ -95,8 +102,8 @@ async function runCrawler({ url, maxDepth = DEFAULT_MAX_DEPTH, delay = DEFAULT_D
       stderr: stderrChunks.join('')
     };
   } finally {
-    await rm(tempDir, { recursive: true, force: true }).catch(() => {
-      // ignore cleanup errors
+    await rm(tempDir, { recursive: true, force: true }).catch((error) => {
+      console.warn(`Failed to cleanup temp directory ${tempDir}:`, error.message);
     });
   }
 }
@@ -166,14 +173,64 @@ export function createCrawlerServer() {
 export async function startCrawlerServer(options = {}) {
   const {
     host = process.env.MCP_HOST || '0.0.0.0',
-    port = Number(process.env.PORT || process.env.HTTP_PORT || 8000),
-    allowedOrigins = process.env.MCP_ALLOWED_ORIGINS
-      ? process.env.MCP_ALLOWED_ORIGINS.split(',').map((value) => value.trim()).filter(Boolean)
-      : ['*'],
+    port: optionPort,
+    allowedOrigins: optionAllowedOrigins,
     proxyPath = process.env.MCP_PROXY_PATH || '/mcp',
     healthPath = process.env.MCP_HEALTH_PATH || '/healthz',
     logger = console
   } = options;
+
+  const port = (() => {
+    if (optionPort !== undefined) {
+      const numericPort = Number(optionPort);
+      if (!Number.isInteger(numericPort) || numericPort <= 0 || numericPort > 65535) {
+        throw new Error(`Invalid port number: ${optionPort}`);
+      }
+      return numericPort;
+    }
+
+    const envPort = process.env.PORT || process.env.HTTP_PORT;
+    if (envPort !== undefined) {
+      const numericPort = Number(envPort);
+      if (!Number.isInteger(numericPort) || numericPort <= 0 || numericPort > 65535) {
+        throw new Error(`Invalid port number: ${envPort}`);
+      }
+      return numericPort;
+    }
+
+    return 8000;
+  })();
+
+  const allowedOrigins = (() => {
+    if (optionAllowedOrigins !== undefined) {
+      const normalized = (Array.isArray(optionAllowedOrigins)
+        ? optionAllowedOrigins
+        : [optionAllowedOrigins]
+      )
+        .map((value) => String(value).trim())
+        .filter(Boolean);
+
+      if (!normalized.length) {
+        throw new Error('allowedOrigins must include at least one origin.');
+      }
+
+      return normalized;
+    }
+
+    if (process.env.MCP_ALLOWED_ORIGINS) {
+      const normalized = process.env.MCP_ALLOWED_ORIGINS.split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      if (!normalized.length) {
+        throw new Error('MCP_ALLOWED_ORIGINS must contain at least one origin.');
+      }
+
+      return normalized;
+    }
+
+    return ['*'];
+  })();
 
   const server = createCrawlerServer();
 

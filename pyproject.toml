@@ -30,9 +30,9 @@ classifiers = [
 keywords = ["github", "actions", "deploy", "preview", "vpc"]
 
 [project.urls]
-Homepage = "https://github.com/jleechanorg/ai_web_crawler"
-Source = "https://github.com/jleechanorg/ai_web_crawler"
-Issues = "https://github.com/jleechanorg/ai_web_crawler/issues"
+Homepage = "https://github.com/jleechan2015/ai_web_crawler"
+Source = "https://github.com/jleechan2015/ai_web_crawler"
+Issues = "https://github.com/jleechan2015/ai_web_crawler/issues"
 
 [tool.setuptools]
 packages = ["github_actions_deploy"]
