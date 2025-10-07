@@ -6,7 +6,7 @@ import argparse
 import json
 import os
 from dataclasses import replace
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from .async_build import AsyncBuildClient, AsyncBuildError, BuildStatus
 from .github import upsert_pull_request_comment
@@ -27,6 +27,100 @@ def _parse_key_value(items: Optional[Sequence[str]]) -> List[Tuple[str, str]]:
         key, value = item.split("=", 1)
         results.append((key.strip(), value.strip()))
     return results
+
+
+def _normalize_preview_entry(label: Optional[str], url: Optional[str]) -> Optional[Tuple[str, str]]:
+    if not url:
+        return None
+    url = url.strip()
+    if not url:
+        return None
+    normalized_label = (label or "Preview").strip() or "Preview"
+    return normalized_label, url
+
+
+def _extract_preview_from_mapping(values: Mapping[str, Any]) -> Iterable[Tuple[str, str]]:
+    for key, candidate in values.items():
+        if isinstance(candidate, Mapping):
+            url = candidate.get("url") or candidate.get("href")
+            label = candidate.get("label") or candidate.get("name") or key
+            entry = _normalize_preview_entry(label, url if isinstance(url, str) else None)
+            if entry:
+                yield entry
+        elif isinstance(candidate, str):
+            entry = _normalize_preview_entry(key, candidate)
+            if entry:
+                yield entry
+
+
+def _extract_preview_from_sequence(values: Sequence[Any]) -> Iterable[Tuple[str, str]]:
+    for index, item in enumerate(values):
+        if isinstance(item, Mapping):
+            url = item.get("url") or item.get("href")
+            label = item.get("label") or item.get("name") or item.get("title")
+            entry = _normalize_preview_entry(label, url if isinstance(url, str) else None)
+            if entry:
+                yield entry
+        elif isinstance(item, str):
+            entry = _normalize_preview_entry(None, item)
+            if entry:
+                yield entry
+
+
+def _metadata_preview_links(metadata: Mapping[str, Any] | None) -> List[Tuple[str, str]]:
+    if not metadata:
+        return []
+
+    results: List[Tuple[str, str]] = []
+
+    def extend_with(value: Any) -> None:
+        if isinstance(value, str):
+            entry = _normalize_preview_entry(None, value)
+            if entry:
+                results.append(entry)
+        elif isinstance(value, Mapping):
+            for entry in _extract_preview_from_mapping(value):
+                results.append(entry)
+        elif isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+            for entry in _extract_preview_from_sequence(value):
+                results.append(entry)
+
+    keys_to_check = (
+        "preview_link",
+        "preview_links",
+        "preview_url",
+        "preview_urls",
+        "preview",
+    )
+
+    for key in keys_to_check:
+        extend_with(metadata.get(key))
+
+    return results
+
+
+def _merge_preview_links(
+    provided: Sequence[Tuple[str, str]],
+    metadata_links: Sequence[Tuple[str, str]],
+) -> List[Tuple[str, str]]:
+    merged: List[Tuple[str, str]] = []
+    seen_urls: set[str] = set()
+
+    def append_unique(label: str, url: str) -> None:
+        normalized_url = url.strip()
+        if not normalized_url:
+            return
+        if normalized_url in seen_urls:
+            return
+        seen_urls.add(normalized_url)
+        merged.append((label.strip() or f"Preview {len(merged) + 1}", normalized_url))
+
+    for label, url in list(provided) + list(metadata_links):
+        entry = _normalize_preview_entry(label, url)
+        if entry:
+            append_unique(*entry)
+
+    return merged
 
 
 def _indicator_from_build(status: BuildStatus, *, preview_urls: Sequence[Tuple[str, str]]) -> List[ProgressIndicator]:
@@ -130,7 +224,9 @@ def cmd_start(args: argparse.Namespace) -> int:
     payload = _load_payload(args.payload)
     build = client.start_build(payload)
 
-    preview_links = _parse_key_value(args.preview_url)
+    explicit_preview_links = _parse_key_value(args.preview_url)
+    metadata_preview_links = _metadata_preview_links(build.metadata)
+    preview_links = _merge_preview_links(explicit_preview_links, metadata_preview_links)
     quick_links = _parse_key_value(args.quick_link)
     indicators = _indicator_from_build(build.status, preview_urls=preview_links)
 
@@ -171,7 +267,7 @@ def cmd_poll(args: argparse.Namespace) -> int:
         poll_interval=args.poll_interval,
     )
 
-    preview_links = _parse_key_value(args.preview_url)
+    explicit_preview_links = _parse_key_value(args.preview_url)
     quick_links = _parse_key_value(args.quick_link)
 
     try:
@@ -192,6 +288,8 @@ def cmd_poll(args: argparse.Namespace) -> int:
     else:
         result_code = 0 if status == BuildStatus.SUCCEEDED else 1
 
+    metadata_preview_links = _metadata_preview_links(build.metadata)
+    preview_links = _merge_preview_links(explicit_preview_links, metadata_preview_links)
     indicators = _indicator_from_build(status, preview_urls=preview_links)
 
     body = render_progress_comment(
