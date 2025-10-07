@@ -233,12 +233,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--preview-url",
         action="append",
-        help="Preview label and URL (format: Label=https://... )",
+        help="Preview label and URL (format: Label=https://...)",
     )
     parser.add_argument(
         "--quick-link",
         action="append",
-        help="Additional quick link (format: Label=https://... )",
+        help="Additional quick link (format: Label=https://...)",
     )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
