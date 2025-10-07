@@ -53,11 +53,11 @@ jobs:
           set -euo pipefail
           missing=0
           if [ -z "${ASYNC_BUILD_BASE_URL}" ]; then
-            echo "::warning::ASYNC_BUILD_BASE_URL secret is not set"
+            echo "::notice::ASYNC_BUILD_BASE_URL secret is not set"
             missing=1
           fi
           if [ -z "${GH_DEPLOY_TOKEN}" ]; then
-            echo "::warning::GH_DEPLOY_TOKEN secret is not set"
+            echo "::notice::GH_DEPLOY_TOKEN secret is not set"
             missing=1
           fi
 
@@ -68,6 +68,7 @@ jobs:
               echo "- Configure the ASYNC_BUILD_BASE_URL and GH_DEPLOY_TOKEN secrets to enable preview provisioning."
             } >> "${GITHUB_STEP_SUMMARY}"
             echo "missing=true" >> "${GITHUB_OUTPUT}"
+            exit 0
           else
             echo "missing=false" >> "${GITHUB_OUTPUT}"
           fi
