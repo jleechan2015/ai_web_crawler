@@ -45,6 +45,7 @@ jobs:
           pip install .
 
       - name: Validate required secrets
+        id: secrets
         env:
           ASYNC_BUILD_BASE_URL: ${{ secrets.ASYNC_BUILD_BASE_URL }}
           GH_DEPLOY_TOKEN: ${{ secrets.GH_DEPLOY_TOKEN }}
@@ -52,18 +53,27 @@ jobs:
           set -euo pipefail
           missing=0
           if [ -z "${ASYNC_BUILD_BASE_URL}" ]; then
-            echo "::error::ASYNC_BUILD_BASE_URL secret is not set"
+            echo "::warning::ASYNC_BUILD_BASE_URL secret is not set"
             missing=1
           fi
           if [ -z "${GH_DEPLOY_TOKEN}" ]; then
-            echo "::error::GH_DEPLOY_TOKEN secret is not set"
+            echo "::warning::GH_DEPLOY_TOKEN secret is not set"
             missing=1
           fi
+
           if [ "${missing}" -ne 0 ]; then
-            exit 1
+            {
+              echo "### Async preview prerequisites"
+              echo "- ⚠️ Async preview build skipped because required secrets are unavailable."
+              echo "- Configure the ASYNC_BUILD_BASE_URL and GH_DEPLOY_TOKEN secrets to enable preview provisioning."
+            } >> "${GITHUB_STEP_SUMMARY}"
+            echo "missing=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "missing=false" >> "${GITHUB_OUTPUT}"
           fi
 
       - name: Prepare async build payload
+        if: steps.secrets.outputs.missing == 'false'
         id: payload
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -94,6 +104,7 @@ jobs:
           PY
 
       - name: Start async build
+        if: steps.secrets.outputs.missing == 'false'
         id: start
         env:
           PAYLOAD: ${{ steps.payload.outputs.json }}
