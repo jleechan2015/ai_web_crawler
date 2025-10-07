@@ -30,6 +30,9 @@ async function runCrawler({ url, maxDepth = DEFAULT_MAX_DEPTH, delay = DEFAULT_D
   const tempDir = await mkdtemp(join(tmpdir(), 'crawler-'));
   const outputDir = join(tempDir, 'output');
   const pythonBin = process.env.CRAWLER_PYTHON_BIN || 'python3';
+  const timeoutEnv = process.env.CRAWLER_TIMEOUT_MS;
+  const timeoutCandidate = Number(timeoutEnv);
+  const timeoutMs = Number.isFinite(timeoutCandidate) && timeoutCandidate > 0 ? timeoutCandidate : 300000;
 
   const args = [
     crawlerScript,
@@ -47,10 +50,23 @@ async function runCrawler({ url, maxDepth = DEFAULT_MAX_DEPTH, delay = DEFAULT_D
 
   try {
     await new Promise((resolvePromise, rejectPromise) => {
+      let settled = false;
+      const settle = (callback) => {
+        if (!settled) {
+          settled = true;
+          callback();
+        }
+      };
+
       const child = spawn(pythonBin, args, {
         cwd: crawlerWorkingDirectory,
         stdio: ['ignore', 'pipe', 'pipe']
       });
+
+      const timeoutHandle = setTimeout(() => {
+        child.kill('SIGTERM');
+        settle(() => rejectPromise(new Error(`Crawler timed out after ${timeoutMs}ms`)));
+      }, timeoutMs);
 
       child.stdout?.on('data', (chunk) => {
         stdoutChunks.push(chunk.toString());
@@ -61,19 +77,21 @@ async function runCrawler({ url, maxDepth = DEFAULT_MAX_DEPTH, delay = DEFAULT_D
       });
 
       child.on('error', (error) => {
-        rejectPromise(error);
+        clearTimeout(timeoutHandle);
+        settle(() => rejectPromise(error));
       });
 
       child.on('close', (code) => {
+        clearTimeout(timeoutHandle);
         if (code === 0) {
-          resolvePromise();
+          settle(() => resolvePromise());
         } else {
           const stderrOutput = stderrChunks.join('').trim();
           const stdoutOutput = stdoutChunks.join('').trim();
           const message = `Crawler exited with code ${code}`;
           const details = stderrOutput || stdoutOutput;
           const error = new Error(details ? `${message}: ${details}` : message);
-          rejectPromise(error);
+          settle(() => rejectPromise(error));
         }
       });
     });
@@ -143,7 +161,7 @@ export function createCrawlerServer() {
 
       const summaryText = [
         `Crawled URL: ${args.url}`,
-        `Max depth: ${args.maxDepth ?? DEFAULT_MAX_DEPTH}`,
+        `Max depth: ${args.maxDepth}`,
         documents.length ? 'Discovered documents:\n' + documentSummary : 'No linked documents were saved.',
         stdout.trim() ? `\nCrawler output:\n${stdout.trim()}` : '',
         stderr.trim() ? `\nCrawler warnings:\n${stderr.trim()}` : ''

@@ -26,9 +26,7 @@ jobs:
     name: Trigger async build
     if: >-
       github.event_name == 'pull_request' &&
-      github.event.action != 'closed' &&
-      secrets.ASYNC_BUILD_BASE_URL != '' &&
-      secrets.GH_DEPLOY_TOKEN != ''
+      github.event.action != 'closed'
     runs-on: ubuntu-latest
     outputs:
       build_id: ${{ steps.start.outputs.build_id }}
@@ -46,6 +44,25 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install .
+
+      - name: Validate required secrets
+        env:
+          ASYNC_BUILD_BASE_URL: ${{ secrets.ASYNC_BUILD_BASE_URL }}
+          GH_DEPLOY_TOKEN: ${{ secrets.GH_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${ASYNC_BUILD_BASE_URL}" ]; then
+            echo "::error::ASYNC_BUILD_BASE_URL secret is not set"
+            missing=1
+          fi
+          if [ -z "${GH_DEPLOY_TOKEN}" ]; then
+            echo "::error::GH_DEPLOY_TOKEN secret is not set"
+            missing=1
+          fi
+          if [ "${missing}" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Prepare async build payload
         id: payload

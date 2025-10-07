@@ -8,13 +8,13 @@ import os
 from dataclasses import replace
 from typing import Dict, List, Optional, Sequence, Tuple
 
-
-class ConfigurationError(RuntimeError):
-    """Raised when CLI configuration is invalid."""
-
 from .async_build import AsyncBuildClient, AsyncBuildError, BuildStatus
 from .github import upsert_pull_request_comment
 from .pr_comments import COMMENT_MARKER, IndicatorState, ProgressIndicator, render_progress_comment
+
+
+class ConfigurationError(RuntimeError):
+    """Raised when CLI configuration is invalid."""
 
 
 def _parse_key_value(items: Optional[Sequence[str]]) -> List[Tuple[str, str]]:

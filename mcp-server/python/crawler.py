@@ -9,24 +9,42 @@ from google_docs_scraper import GoogleDocsScraper
 
 
 def main():
-    parser = argparse.ArgumentParser(description='AI Web Crawler for Google Docs')
-    parser.add_argument('url', help='Starting Google Docs URL to crawl')
-    parser.add_argument('--max-depth', type=int, default=3, help='Maximum crawl depth (default: 3)')
-    parser.add_argument('--delay', type=float, default=1.0, help='Delay between requests in seconds (default: 1.0)')
-    parser.add_argument('--output-dir', default='output', help='Output directory for markdown files (default: output)')
-    parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose logging')
-    
+    parser = argparse.ArgumentParser(description="AI Web Crawler for Google Docs")
+    parser.add_argument("url", help="Starting Google Docs URL to crawl")
+    parser.add_argument(
+        "--max-depth",
+        type=int,
+        default=1,
+        choices=range(0, 6),
+        help="Maximum crawl depth (default: 1, max: 5)",
+    )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=1.0,
+        help="Delay between requests in seconds (default: 1.0, max: 10)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="output",
+        help="Output directory for markdown files (default: output)",
+    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
+
     args = parser.parse_args()
-    
+
+    if args.delay < 0 or args.delay > 10:
+        parser.error("--delay must be between 0 and 10")
+
     # Set up logging
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=log_level,
-        format='%(asctime)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(levelname)s - %(message)s"
     )
-    
+
     # Validate URL
-    if 'docs.google.com/document' not in args.url:
+    if "docs.google.com/document" not in args.url:
         print("Error: URL must be a Google Docs document", file=sys.stderr)
         sys.exit(1)
     
@@ -60,7 +78,7 @@ def main():
         print("\n❌ Crawl interrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Error during crawl: {str(e)}", file=sys.stderr)
+        print(f"❌ Error during crawl: {e!s}", file=sys.stderr)
         logging.exception("Full error details:")
         sys.exit(1)
 
