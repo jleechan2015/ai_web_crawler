@@ -1,0 +1,33 @@
+{
+  "name": "ai-web-crawler-mcp-server",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server that wraps the AI Web Crawler to produce Markdown from Google Docs URLs.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "ai-web-crawler-mcp-server": "src/index.js"
+  },
+  "files": [
+    "src",
+    "scripts",
+    "python"
+  ],
+  "scripts": {
+    "start": "node ./src/index.js",
+    "smoke-test": "node ./scripts/smoke-test.mjs"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "google-docs",
+    "crawler",
+    "markdown"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@ai-universe/mcp-server-utils": "^1.0.0",
+    "fastmcp": "^3.19.0",
+    "zod": "^3.23.8"
+  }
+}

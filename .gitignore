@@ -37,6 +37,8 @@ venv.bak/
 
 # Output files (exclude specific directories but allow docs/)
 output/
+node_modules/
+mcp-server/node_modules/
 *.md
 !README.md
 !docs/**/*.md

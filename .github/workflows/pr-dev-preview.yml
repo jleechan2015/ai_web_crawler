@@ -1,0 +1,223 @@
+name: PR dev preview (async)
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - closed
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-dev-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
+jobs:
+  start-build:
+    name: Trigger async build
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    outputs:
+      build_id: ${{ steps.start.outputs.build_id }}
+      comment_id: ${{ steps.start.outputs.comment_id }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install deploy helper
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Validate required secrets
+        id: secrets
+        env:
+          ASYNC_BUILD_BASE_URL: ${{ secrets.ASYNC_BUILD_BASE_URL }}
+          GH_DEPLOY_TOKEN: ${{ secrets.GH_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${ASYNC_BUILD_BASE_URL}" ]; then
+            echo "::notice::ASYNC_BUILD_BASE_URL secret is not set"
+            missing=1
+          fi
+          if [ -z "${GH_DEPLOY_TOKEN}" ]; then
+            echo "::notice::GH_DEPLOY_TOKEN secret is not set"
+            missing=1
+          fi
+
+          if [ "${missing}" -ne 0 ]; then
+            {
+              echo "### Async preview prerequisites"
+              echo "- ⚠️ Async preview build skipped because required secrets are unavailable."
+              echo "- Configure the ASYNC_BUILD_BASE_URL and GH_DEPLOY_TOKEN secrets to enable preview provisioning."
+            } >> "${GITHUB_STEP_SUMMARY}"
+            echo "missing=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          else
+            echo "missing=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Prepare async build payload
+        if: steps.secrets.outputs.missing == 'false'
+        id: payload
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          payload = {
+              "source": {
+                  "git": {
+                      "repo": os.environ.get("GITHUB_REPOSITORY"),
+                      "ref": os.environ.get("REF_NAME"),
+                      "commit": os.environ.get("SHA"),
+                  }
+              },
+              "substitutions": {
+                  "_PR_NUMBER": os.environ.get("PR_NUMBER"),
+                  "_REF_NAME": os.environ.get("REF_NAME"),
+              },
+              "tags": ["deploy-preview", os.environ.get("PR_NUMBER", "pr")],
+          }
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write("json=" + json.dumps(payload) + "\n")
+          PY
+
+      - name: Start async build
+        if: steps.secrets.outputs.missing == 'false'
+        id: start
+        env:
+          PAYLOAD: ${{ steps.payload.outputs.json }}
+          GH_TOKEN: ${{ secrets.GH_DEPLOY_TOKEN }}
+          BUILD_TOKEN: ${{ secrets.ASYNC_BUILD_TOKEN }}
+          PREVIEW_URL: ${{ secrets.PREVIEW_SERVICE_URL }}
+          DASHBOARD_URL: ${{ secrets.PREVIEW_DASHBOARD_URL }}
+        run: |
+          set -euo pipefail
+          PREVIEW_ARG=""
+          if [ -n "${PREVIEW_URL:-}" ]; then
+            PREVIEW_ARG="--preview-url Preview=${PREVIEW_URL}"
+          fi
+          DASHBOARD_ARG=""
+          if [ -n "${DASHBOARD_URL:-}" ]; then
+            DASHBOARD_ARG="--quick-link Dashboard=${DASHBOARD_URL}"
+          fi
+          BUILD_TOKEN_ARG=""
+          if [ -n "${BUILD_TOKEN:-}" ]; then
+            BUILD_TOKEN_ARG="--build-token ${BUILD_TOKEN}"
+          fi
+          python -m github_actions_deploy.cli \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pr-number "${{ github.event.pull_request.number }}" \
+            --github-token "${GH_TOKEN}" \
+            --base-url "${{ secrets.ASYNC_BUILD_BASE_URL }}" \
+            --payload "${PAYLOAD}" \
+            ${BUILD_TOKEN_ARG} \
+            ${PREVIEW_ARG} \
+            ${DASHBOARD_ARG} \
+            start
+
+  complete-build:
+    name: Await build completion
+    runs-on: ubuntu-latest
+    needs: start-build
+    if: >-
+      github.event_name == 'pull_request' &&
+      needs.start-build.result == 'success' &&
+      needs.start-build.outputs.build_id != ''
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install deploy helper
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Wait for async build
+        env:
+          BUILD_ID: ${{ needs.start-build.outputs.build_id }}
+          GH_TOKEN: ${{ secrets.GH_DEPLOY_TOKEN }}
+          BUILD_TOKEN: ${{ secrets.ASYNC_BUILD_TOKEN }}
+          PREVIEW_URL: ${{ secrets.PREVIEW_SERVICE_URL }}
+          DASHBOARD_URL: ${{ secrets.PREVIEW_DASHBOARD_URL }}
+        run: |
+          set -euo pipefail
+          PREVIEW_ARG=""
+          if [ -n "${PREVIEW_URL:-}" ]; then
+            PREVIEW_ARG="--preview-url Preview=${PREVIEW_URL}"
+          fi
+          DASHBOARD_ARG=""
+          if [ -n "${DASHBOARD_URL:-}" ]; then
+            DASHBOARD_ARG="--quick-link Dashboard=${DASHBOARD_URL}"
+          fi
+          BUILD_TOKEN_ARG=""
+          if [ -n "${BUILD_TOKEN:-}" ]; then
+            BUILD_TOKEN_ARG="--build-token ${BUILD_TOKEN}"
+          fi
+          python -m github_actions_deploy.cli \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pr-number "${{ github.event.pull_request.number }}" \
+            --github-token "${GH_TOKEN}" \
+            --base-url "${{ secrets.ASYNC_BUILD_BASE_URL }}" \
+            --build-id "${BUILD_ID}" \
+            ${BUILD_TOKEN_ARG} \
+            ${PREVIEW_ARG} \
+            ${DASHBOARD_ARG} \
+            poll
+
+  mcp-smoke-tests:
+    name: MCP server smoke tests
+    needs:
+      - start-build
+      - complete-build
+    if: >-
+      github.event_name == 'pull_request' &&
+      needs.start-build.result == 'success' &&
+      (
+        needs.complete-build.result == 'success' ||
+        needs.complete-build.result == 'skipped'
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: mcp-server
+        run: npm ci
+
+      - name: Run smoke tests
+        working-directory: mcp-server
+        run: npm run smoke-test

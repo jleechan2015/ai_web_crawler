@@ -72,3 +72,7 @@ The crawler generates:
 ## Test Results
 
 Successfully tested on a complex Google Docs tree, crawling 39 documents and generating 5,691 lines of combined markdown content.
+
+## Continuous deployment from restricted networks
+
+To support enterprise environments protected by VPC Service Controls, this repository ships with a GitHub Actions workflow and a reusable Python package that orchestrate asynchronous deploy builds. The workflow triggers a remote builder, polls for completion, updates the pull request with rich status cards and preview links, and now finishes with MCP smoke tests to ensure the packaged server continues to boot cleanly. See [`docs/ci-preview.md`](docs/ci-preview.md) for setup instructions and customization tips.
