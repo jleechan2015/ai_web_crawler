@@ -200,7 +200,10 @@ jobs:
     if: >-
       github.event_name == 'pull_request' &&
       needs.start-build.result == 'success' &&
-      needs.complete-build.result == 'success'
+      (
+        needs.complete-build.result == 'success' ||
+        needs.complete-build.result == 'skipped'
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
